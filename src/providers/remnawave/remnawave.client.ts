@@ -74,11 +74,16 @@ export class RemnawaveClient {
     if (internalSquadUuid) {
       payload.activeInternalSquads = [internalSquadUuid];
     }
-
-    const { data } = await this.http.post("/api/users", payload, {
-      headers: this.getAuthHeaders(),
-    });
-    return data;
+    try {
+      const { data } = await this.http.post("/api/users", payload, {
+        headers: this.getAuthHeaders(),
+      });
+      return data;
+    } catch (error) {
+      throw new Error(
+        (error as any)?.response?.data?.message ?? "Unknown error",
+      );
+    }
   }
 
   async updateUserByPhone(

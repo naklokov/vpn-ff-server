@@ -17,7 +17,9 @@ export const addPayment = async (
     const message =
       error instanceof Error ? error.message : "Ошибка при добавлении платежа";
     const statusCode =
-      message === "chatId, period, amount, phone и date обязательны" ? 400 : 500;
+      message === "chatId, period, amount, phone и date обязательны"
+        ? 400
+        : 500;
     res.status(statusCode).json({ message });
   }
 };
@@ -64,8 +66,8 @@ export const checkPayment = async (
   } catch (error: unknown) {
     const message =
       error instanceof Error ? error.message : "Ошибка при проверке платежа";
-    const statusCode = message === "amount и fileBase64 обязательны" ? 400 : 500;
+    const statusCode =
+      message === "amount и fileBase64 обязательны" ? 400 : 500;
     res.status(statusCode).json({ message });
   }
 };
-

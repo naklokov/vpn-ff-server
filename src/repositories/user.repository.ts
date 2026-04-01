@@ -2,6 +2,10 @@ import { UserModel, IUser } from "../models/user.model";
 import { CreateUserDto, UpdateUserDto } from "../types/user.types";
 
 export class UserRepository {
+  async findByChatId(chatId: number): Promise<IUser | null> {
+    return UserModel.findOne({ chatId });
+  }
+
   async findByPhone(phone: string): Promise<IUser | null> {
     return UserModel.findOne({ phone });
   }

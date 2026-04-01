@@ -5,8 +5,28 @@ const MIME_TYPES = {
   PDF: "application/pdf",
 };
 
+const escapeRegex = (s: string): string =>
+  s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const amountFormatRu = new Intl.NumberFormat("ru-RU", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
+/**
+ * Сумма в чеках часто пишется с разделителем тысяч: «1 300», «1\u202f300».
+ * Группировка берётся из {@link Intl.NumberFormat} (локаль ru-RU), затем любые пробелы
+ * в шаблоне заменяются на «ноль или больше» пробельных символов — так совпадают и «1300», и «1 300».
+ */
+const buildAmountPattern = (amount: number): string => {
+  const n = Math.trunc(Math.abs(amount));
+  const formatted = amountFormatRu.format(n);
+  return escapeRegex(formatted).replace(/\s+/g, "[\\s\\u00a0\\u202f]*");
+};
+
 const checkRegexpAmount = (text: string, amount: number): boolean => {
-  const amountRegExp = new RegExp(`(${amount})[\\s|.|,]{1}`);
+  const inner = buildAmountPattern(amount);
+  const amountRegExp = new RegExp(`(${inner})[\\s|.,]{1}`);
   return amountRegExp.test(text);
 };
 
@@ -26,16 +46,23 @@ const getTextFromPdf = async (fileBuffer: Buffer): Promise<string> => {
   return content.items.map((item) => ("str" in item ? item.str : "")).join(" ");
 };
 
-const checkPaymentPdf = async (amount: number, fileBuffer: Buffer): Promise<boolean> => {
+const checkPaymentPdf = async (
+  amount: number,
+  fileBuffer: Buffer,
+): Promise<boolean> => {
   try {
     const text = await getTextFromPdf(fileBuffer);
     return checkRegexpAmount(text, amount);
-  } catch {
+  } catch (error) {
+    console.log("error", error);
     return false;
   }
 };
 
-const checkPaymentPhoto = async (amount: number, fileBuffer: Buffer): Promise<boolean> => {
+const checkPaymentPhoto = async (
+  amount: number,
+  fileBuffer: Buffer,
+): Promise<boolean> => {
   try {
     const recognizedRus = await Tesseract.recognize(fileBuffer, "rus");
     return checkRegexpAmount(recognizedRus?.data?.text ?? "", amount);
@@ -50,7 +77,6 @@ export const checkPaymentByFile = async (
   mimeType?: string,
 ): Promise<boolean> => {
   const fileBuffer = parseBase64(fileBase64);
-
   if (mimeType === MIME_TYPES.PDF) {
     return checkPaymentPdf(amount, fileBuffer);
   }

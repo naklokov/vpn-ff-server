@@ -14,6 +14,7 @@ export const addUser = async (
       error instanceof Error
         ? error.message
         : "Ошибка при добавлении пользователя";
+
     const statusCode =
       message === "phone и password обязательны"
         ? 400
@@ -30,6 +31,52 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
     res.status(200).json(users);
   } catch {
     res.status(500).json({ message: "Ошибка при получении пользователей" });
+  }
+};
+
+export const getUserByChatId = async (
+  req: Request<{ chatId: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const chatId = Number(req.params.chatId);
+    if (!Number.isFinite(chatId)) {
+      res.status(400).json({ message: "Некорректный chatId" });
+      return;
+    }
+
+    const user = await userUseCase.getUserByChatId(chatId);
+    if (!user) {
+      res.status(404).json({ message: "Пользователь не найден" });
+      return;
+    }
+
+    res.status(200).json(user);
+  } catch {
+    res.status(500).json({ message: "Ошибка при получении пользователя" });
+  }
+};
+
+export const getUserByPhone = async (
+  req: Request<{ phone: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { phone } = req.params;
+    if (!phone) {
+      res.status(400).json({ message: "Некорректный phone" });
+      return;
+    }
+
+    const user = await userUseCase.getUserByPhone(phone);
+    if (!user) {
+      res.status(404).json({ message: "Пользователь не найден" });
+      return;
+    }
+
+    res.status(200).json(user);
+  } catch {
+    res.status(500).json({ message: "Ошибка при получении пользователя" });
   }
 };
 

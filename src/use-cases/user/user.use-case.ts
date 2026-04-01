@@ -8,6 +8,10 @@ export class UserUseCase {
     return userRepository.findAll();
   }
 
+  getUserByChatId(chatId: number) {
+    return userRepository.findByChatId(chatId);
+  }
+
   getUserByPhone(phone: string) {
     return userRepository.findByPhone(phone);
   }
@@ -51,15 +55,17 @@ export class UserUseCase {
     if (existingEmail) {
       throw new Error("Пользователь с такой электронной почтой уже существует");
     }
-
-    await remnawaveClient.addUser({
-      username: input.phone,
-      chatId: input.chatId,
-      description: input.name,
-      email: input.email,
-      expireAt: input.expiredDate ?? getExpiredDateIso(),
-    });
-
+    try {
+      await remnawaveClient.addUser({
+        username: input.phone,
+        chatId: input.chatId,
+        description: input.name,
+        email: input.email,
+        expireAt: input.expiredDate ?? getExpiredDateIso(),
+      });
+    } catch (error) {
+      throw error;
+    }
     return userRepository.create(input);
   }
 }

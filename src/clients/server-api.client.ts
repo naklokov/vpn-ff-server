@@ -29,6 +29,16 @@ export class ServerApiClient {
     return data;
   }
 
+  async getUserByChatId(chatId: number) {
+    const { data } = await this.http.get(`/api/users/chat/${encodeURIComponent(chatId)}`);
+    return data;
+  }
+
+  async getUserByPhone(phone: string) {
+    const { data } = await this.http.get(`/api/users/phone/${encodeURIComponent(phone)}`);
+    return data;
+  }
+
   async addUser(payload: CreateUserDto) {
     const { data } = await this.http.post("/api/users", payload);
     return data;

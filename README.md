@@ -24,6 +24,8 @@ All `/api/*` endpoints require header: `x-api-token: <API_TOKEN>`.
 
 - `POST /api/users` - add user
 - `GET /api/users` - get all users
+- `GET /api/users/chat/:chatId` - get user by chatId
+- `GET /api/users/phone/:phone` - get user by phone
 - `PATCH /api/users/:phone` - update user by phone
 
 - `POST /api/payments` - add payment
