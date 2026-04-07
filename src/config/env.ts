@@ -12,6 +12,7 @@ requiredEnv.forEach((envName) => {
 
 export const env = {
   port: Number(process.env.PORT ?? 3000),
+  jsonBodyLimit: process.env.JSON_BODY_LIMIT ?? "15mb",
   mongoUri: process.env.MONGO_URI as string,
   mongoUserCollection: process.env.MONGO_USER_COLLECTION?.trim() || undefined,
   apiToken: process.env.API_TOKEN as string,
