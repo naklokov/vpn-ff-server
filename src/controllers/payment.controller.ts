@@ -5,6 +5,7 @@ import {
   CreatePaymentDto,
   UpdatePaymentDto,
 } from "../types/payment.types";
+import { logger } from "../utils/logger";
 
 export const addPayment = async (
   req: Request<unknown, unknown, CreatePaymentDto>,
@@ -17,9 +18,14 @@ export const addPayment = async (
     const message =
       error instanceof Error ? error.message : "Ошибка при добавлении платежа";
     const statusCode =
-      message === "chatId, period, amount, phone и date обязательны"
+      message === "period, amount, phone и date обязательны"
         ? 400
         : 500;
+    if (statusCode >= 500) {
+      logger.error("addPayment failed", error, {
+        path: "/api/payments",
+      });
+    }
     res.status(statusCode).json({ message });
   }
 };
@@ -31,7 +37,10 @@ export const getPayments = async (
   try {
     const payments = await paymentUseCase.getAll();
     res.status(200).json(payments);
-  } catch {
+  } catch (error: unknown) {
+    logger.error("getPayments failed", error, {
+      path: "/api/payments",
+    });
     res.status(500).json({ message: "Ошибка при получении платежей" });
   }
 };
@@ -52,6 +61,12 @@ export const updatePaymentById = async (
         : message === "Платеж не найден"
           ? 404
           : 500;
+    if (statusCode >= 500) {
+      logger.error("updatePaymentById failed", error, {
+        path: "/api/payments/:id",
+        paymentId: req.params.id,
+      });
+    }
     res.status(statusCode).json({ message });
   }
 };
@@ -68,6 +83,11 @@ export const checkPayment = async (
       error instanceof Error ? error.message : "Ошибка при проверке платежа";
     const statusCode =
       message === "amount и fileBase64 обязательны" ? 400 : 500;
+    if (statusCode >= 500) {
+      logger.error("checkPayment failed", error, {
+        path: "/api/payments/check-payment",
+      });
+    }
     res.status(statusCode).json({ message });
   }
 };

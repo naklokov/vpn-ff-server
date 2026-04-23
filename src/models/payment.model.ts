@@ -1,7 +1,7 @@
 import { Schema, model, Document } from "mongoose";
 
 export interface IPayment extends Document {
-  chatId: number;
+  chatId?: number;
   period: number;
   amount: number;
   phone: string;
@@ -10,7 +10,7 @@ export interface IPayment extends Document {
 
 const paymentSchema = new Schema<IPayment>(
   {
-    chatId: { type: Number, required: true },
+    chatId: { type: Number },
     period: { type: Number, required: true },
     amount: { type: Number, required: true },
     phone: { type: String, required: true },

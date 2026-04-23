@@ -1,5 +1,5 @@
 export type CreatePaymentDto = {
-  chatId: number;
+  chatId?: number;
   period: number;
   amount: number;
   phone: string;

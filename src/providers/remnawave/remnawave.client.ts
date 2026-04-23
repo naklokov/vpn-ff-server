@@ -1,10 +1,11 @@
 import axios, { AxiosInstance } from "axios";
 import { env } from "../../config/env";
 import { getExpiredDateIso } from "../../utils/date";
+import { logger } from "../../utils/logger";
 
 type AddRemnawaveUserInput = {
   username: string;
-  chatId?: number;
+  chatId?: string;
   description?: string;
   email?: string;
   expireAt?: string;
@@ -80,8 +81,18 @@ export class RemnawaveClient {
       });
       return data;
     } catch (error) {
+      const status = (error as any)?.response?.status;
+      const responseData = (error as any)?.response?.data;
+      const responseMessage = (error as any)?.response?.data?.message;
+
+      logger.error("Remnawave addUser request failed", {
+        status,
+        responseData,
+        payload,
+      });
+
       throw new Error(
-        (error as any)?.response?.data?.message ?? "Unknown error",
+        responseMessage ?? "Unknown error",
       );
     }
   }

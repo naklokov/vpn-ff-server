@@ -1,5 +1,6 @@
 import Tesseract from "tesseract.js";
 import * as pdfjsLib from "pdfjs-dist";
+import { logger } from "./logger";
 
 const MIME_TYPES = {
   PDF: "application/pdf",
@@ -54,7 +55,7 @@ const checkPaymentPdf = async (
     const text = await getTextFromPdf(fileBuffer);
     return checkRegexpAmount(text, amount);
   } catch (error) {
-    console.log("error", error);
+    logger.error("checkPaymentPdf failed", error, { amount });
     return false;
   }
 };

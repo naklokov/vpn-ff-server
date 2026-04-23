@@ -15,13 +15,12 @@ export class PaymentUseCase {
 
   async add(input: CreatePaymentDto) {
     if (
-      input.chatId === undefined ||
       input.period === undefined ||
       input.amount === undefined ||
       !input.phone ||
       !input.date
     ) {
-      throw new Error("chatId, period, amount, phone и date обязательны");
+      throw new Error("period, amount, phone и date обязательны");
     }
 
     return paymentRepository.create(input);

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { userUseCase } from "../use-cases/user/user.use-case";
 import { CreateUserDto, UpdateUserDto } from "../types/user.types";
+import { logger } from "../utils/logger";
 
 export const addUser = async (
   req: Request<unknown, unknown, CreateUserDto>,
@@ -16,11 +17,17 @@ export const addUser = async (
         : "Ошибка при добавлении пользователя";
 
     const statusCode =
-      message === "phone и password обязательны"
+      message === "Email и пароль обязательны"
         ? 400
-        : message === "Пользователь с таким телефоном уже существует"
+        : message === "Пользователь с таким username уже существует" ||
+            message === "Пользователь с такой электронной почтой уже существует"
           ? 409
           : 500;
+    if (statusCode >= 500) {
+      logger.error("addUser failed", error, {
+        path: "/api/users",
+      });
+    }
     res.status(statusCode).json({ message });
   }
 };
@@ -29,7 +36,10 @@ export const getUsers = async (_req: Request, res: Response): Promise<void> => {
   try {
     const users = await userUseCase.getAll();
     res.status(200).json(users);
-  } catch {
+  } catch (error: unknown) {
+    logger.error("getUsers failed", error, {
+      path: "/api/users",
+    });
     res.status(500).json({ message: "Ошибка при получении пользователей" });
   }
 };
@@ -52,7 +62,11 @@ export const getUserByChatId = async (
     }
 
     res.status(200).json(user);
-  } catch {
+  } catch (error: unknown) {
+    logger.error("getUserByChatId failed", error, {
+      path: "/api/users/chat/:chatId",
+      chatId: req.params.chatId,
+    });
     res.status(500).json({ message: "Ошибка при получении пользователя" });
   }
 };
@@ -75,7 +89,11 @@ export const getUserByPhone = async (
     }
 
     res.status(200).json(user);
-  } catch {
+  } catch (error: unknown) {
+    logger.error("getUserByPhone failed", error, {
+      path: "/api/users/phone/:phone",
+      phone: req.params.phone,
+    });
     res.status(500).json({ message: "Ошибка при получении пользователя" });
   }
 };
@@ -99,6 +117,12 @@ export const updateUserByPhone = async (
         : message === "Пользователь не найден"
           ? 404
           : 500;
+    if (statusCode >= 500) {
+      logger.error("updateUserByPhone failed", error, {
+        path: "/api/users/:phone",
+        phone: req.params.phone,
+      });
+    }
     res.status(statusCode).json({ message });
   }
 };

@@ -10,6 +10,10 @@ export class UserRepository {
     return UserModel.findOne({ phone });
   }
 
+  async findByPhoneIn(phones: string[]): Promise<IUser | null> {
+    return UserModel.findOne({ phone: { $in: phones } });
+  }
+
   async findByEmail(email: string): Promise<IUser | null> {
     return UserModel.findOne({ email });
   }
@@ -28,6 +32,17 @@ export class UserRepository {
   ): Promise<IUser | null> {
     return UserModel.findOneAndUpdate(
       { phone },
+      { $set: data },
+      { new: true, runValidators: true },
+    );
+  }
+
+  async updateByPhoneIn(
+    phones: string[],
+    data: UpdateUserDto,
+  ): Promise<IUser | null> {
+    return UserModel.findOneAndUpdate(
+      { phone: { $in: phones } },
       { $set: data },
       { new: true, runValidators: true },
     );
