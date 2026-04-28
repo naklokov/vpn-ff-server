@@ -1,5 +1,6 @@
 import { userRepository } from "../../repositories/user.repository";
 import { remnawaveClient } from "../../providers/remnawave/remnawave.client";
+import { sendRegistrationWelcomeEmailFireAndForget } from "../../services/registration-welcome-email.service";
 import { CreateUserDto, UpdateUserDto } from "../../types/user.types";
 import { getExpiredDateIso } from "../../utils/date";
 import {
@@ -101,6 +102,16 @@ export class UserUseCase {
     } catch (error) {
       throw error;
     }
+
+    const expiredDate = preparedInput.expiredDate ?? getExpiredDateIso();
+    sendRegistrationWelcomeEmailFireAndForget({
+      email: preparedInput.email as string,
+      password: preparedInput.password,
+      name: preparedInput.name,
+      phone: preparedInput.phone,
+      expiredDate,
+    });
+
     return createdUser;
   }
 }

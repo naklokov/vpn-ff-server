@@ -21,6 +21,13 @@ type InternalSquadsResponse = {
   };
 };
 
+type SubscriptionByUsernameResponse = {
+  response?: {
+    isFound?: boolean;
+    subscriptionUrl?: string | null;
+  };
+};
+
 export class RemnawaveClient {
   private http: AxiosInstance;
 
@@ -94,6 +101,33 @@ export class RemnawaveClient {
       throw new Error(
         responseMessage ?? "Unknown error",
       );
+    }
+  }
+
+  /**
+   * GET /api/subscriptions/by-username/{username} — ссылка на подписку для клиента VPN.
+   */
+  async getSubscriptionUrlByUsername(
+    username: string,
+  ): Promise<string | null> {
+    try {
+      const { data } = await this.http.get<SubscriptionByUsernameResponse>(
+        `/api/subscriptions/by-username/${encodeURIComponent(String(username))}`,
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
+      const isFound = data?.response?.isFound;
+      const subscriptionUrl = data?.response?.subscriptionUrl;
+      if (!isFound || !subscriptionUrl) {
+        return null;
+      }
+      return subscriptionUrl;
+    } catch (error) {
+      logger.error("Remnawave getSubscriptionUrlByUsername failed", error, {
+        username,
+      });
+      return null;
     }
   }
 
