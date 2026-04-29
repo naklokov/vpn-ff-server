@@ -98,6 +98,33 @@ export const getUserByPhone = async (
   }
 };
 
+export const getUserByEmail = async (
+  req: Request<{ email: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      res.status(400).json({ message: "Некорректный email" });
+      return;
+    }
+
+    const user = await userUseCase.getUserByEmail(email);
+    if (!user) {
+      res.status(404).json({ message: "Пользователь не найден" });
+      return;
+    }
+
+    res.status(200).json(user);
+  } catch (error: unknown) {
+    logger.error("getUserByEmail failed", error, {
+      path: "/api/users/email/:email",
+      email: req.params.email,
+    });
+    res.status(500).json({ message: "Ошибка при получении пользователя" });
+  }
+};
+
 export const updateUserByPhone = async (
   req: Request<{ phone: string }, unknown, UpdateUserDto>,
   res: Response,

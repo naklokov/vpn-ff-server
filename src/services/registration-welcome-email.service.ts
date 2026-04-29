@@ -4,6 +4,7 @@ import {
   isBrevoConfigured,
 } from "../providers/mail/brevo-mail.client";
 import { remnawaveClient } from "../providers/remnawave/remnawave.client";
+import { userRepository } from "../repositories/user.repository";
 import { logger } from "../utils/logger";
 
 const sleep = (ms: number): Promise<void> =>
@@ -41,6 +42,7 @@ function buildWelcomeEmail(params: {
   phone: string;
   expiredDate: string;
   subscriptionUrl: string | null;
+  shouldAddBindEmailInstruction: boolean;
 }) {
   const greetingName = params.name?.trim() || "пользователь";
   const subject = "Успешная регистрация в сервисе VPN FF";
@@ -86,6 +88,12 @@ function buildWelcomeEmail(params: {
     `Дата окончания текущего периода подписки: ${params.expiredDate}`,
     "",
     ...instructionLines,
+    ...(params.shouldAddBindEmailInstruction
+      ? [
+          "",
+          "После настройки VPN перейдите в бота https://t.me/friendly_vpn_ff_bot и выберите там пункт «Привязать email к боту», затем введите email, с которым вы регистрировались. Бот может принимать оплату и уведомлять вас о необходимости оплаты.",
+        ]
+      : []),
     "",
     "С уважением,",
     "команда сервиса",
@@ -125,6 +133,10 @@ function buildWelcomeEmail(params: {
       <li>Готово, ВПН подключен и работает!</li>
     </ol></p>`;
 
+  const bindEmailInstructionHtml = params.shouldAddBindEmailInstruction
+    ? `<br/><p>После настройки VPN перейдите в бота <a href="https://t.me/friendly_vpn_ff_bot">https://t.me/friendly_vpn_ff_bot</a> и выберите там пункт «Привязать email к боту», затем введите email, с которым вы регистрировались. Бот может принимать оплату и уведомлять вас о необходимости оплаты.</p>`
+    : "";
+
   const html = `<!DOCTYPE html><html><body>
   <p>Здравствуйте, ${escapeHtml(greetingName)}!</p>
   <p>Регистрация прошла успешно.</p>
@@ -134,6 +146,7 @@ function buildWelcomeEmail(params: {
   ${subscriptionHtml}
   <br/>
   ${instructionsHtml}
+  ${bindEmailInstructionHtml}
   <br/>
   <p>С уважением,<br/>команда сервиса VPN-FF</p>
   <p>tg: https://t.me/friendly_vpn_ff_bot</p>
@@ -162,6 +175,7 @@ export function sendRegistrationWelcomeEmailFireAndForget(params: {
   void (async () => {
     try {
       const subscriptionUrl = await fetchSubscriptionUrlWithRetry(params.phone);
+      const dbUser = await userRepository.findByEmail(params.email);
       const { subject, text, html } = buildWelcomeEmail({
         name: params.name,
         email: params.email,
@@ -169,6 +183,7 @@ export function sendRegistrationWelcomeEmailFireAndForget(params: {
         phone: params.phone,
         expiredDate: params.expiredDate,
         subscriptionUrl,
+        shouldAddBindEmailInstruction: !dbUser?.chatId,
       });
       await brevoMailClient.sendTransactionalEmail({
         to: params.email,
