@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { userUseCase } from "../use-cases/user/user.use-case";
-import { CreateUserDto, UpdateUserDto } from "../types/user.types";
+import { CreateUserDto, ExtendUserDto, UpdateUserDto } from "../types/user.types";
 import { logger } from "../utils/logger";
 
 export const addUser = async (
@@ -147,6 +147,33 @@ export const updateUserByPhone = async (
     if (statusCode >= 500) {
       logger.error("updateUserByPhone failed", error, {
         path: "/api/users/:phone",
+        phone: req.params.phone,
+      });
+    }
+    res.status(statusCode).json({ message });
+  }
+};
+
+export const extendUserByPhone = async (
+  req: Request<{ phone: string }, unknown, ExtendUserDto>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const { phone } = req.params;
+    const updatedUser = await userUseCase.extendByPhone(phone, req.body);
+    res.status(200).json(updatedUser);
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Ошибка при продлении пользователя";
+    const statusCode =
+      message === "Некорректное количество месяцев"
+        ? 400
+        : message === "Пользователь не найден"
+          ? 404
+          : 500;
+    if (statusCode >= 500) {
+      logger.error("extendUserByPhone failed", error, {
+        path: "/api/users/:phone/extend",
         phone: req.params.phone,
       });
     }

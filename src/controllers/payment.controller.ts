@@ -20,6 +20,10 @@ export const addPayment = async (
     const statusCode =
       message === "period, amount, phone и date обязательны"
         ? 400
+        : message === "Оплата по этому номеру уже была произведена"
+          ? 409
+          : message === "Пользователь не найден"
+            ? 404
         : 500;
     if (statusCode >= 500) {
       logger.error("addPayment failed", error, {

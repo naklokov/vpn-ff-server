@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   addUser,
+  extendUserByPhone,
   getUserByChatId,
   getUserByEmail,
   getUserByPhone,
@@ -16,5 +17,6 @@ userRouter.get("/chat/:chatId", getUserByChatId);
 userRouter.get("/email/:email", getUserByEmail);
 userRouter.get("/phone/:phone", getUserByPhone);
 userRouter.patch("/:phone", updateUserByPhone);
+userRouter.post("/:phone/extend", extendUserByPhone);
 
 export { userRouter };

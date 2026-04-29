@@ -15,5 +15,5 @@ export type CheckPaymentDto = {
 };
 
 export type CheckPaymentResponseDto = {
-  isPayCorrect: boolean;
+  result: boolean;
 };

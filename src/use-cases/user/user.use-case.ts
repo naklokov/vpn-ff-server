@@ -1,7 +1,12 @@
 import { userRepository } from "../../repositories/user.repository";
 import { remnawaveClient } from "../../providers/remnawave/remnawave.client";
 import { sendRegistrationWelcomeEmailFireAndForget } from "../../services/registration-welcome-email.service";
-import { CreateUserDto, UpdateUserDto } from "../../types/user.types";
+import { env } from "../../config/env";
+import {
+  CreateUserDto,
+  ExtendUserDto,
+  UpdateUserDto,
+} from "../../types/user.types";
 import { getExpiredDateIso } from "../../utils/date";
 import {
   getRuPhoneVariants,
@@ -9,6 +14,45 @@ import {
 } from "../../utils/phone";
 
 export class UserUseCase {
+  private readonly remnawavePrefix = env.serverPrefix || "REMNAWAVE";
+
+  private getBaseExpiryDate(dateIso?: string): Date {
+    const now = new Date();
+    const parsed = dateIso ? new Date(dateIso) : null;
+    const base =
+      parsed && !Number.isNaN(parsed.getTime()) && parsed > now ? parsed : now;
+    const endOfDay = new Date(base);
+    endOfDay.setHours(23, 59, 59, 999);
+    return endOfDay;
+  }
+
+  private addMonths(date: Date, months: number): Date {
+    const copy = new Date(date);
+    copy.setMonth(copy.getMonth() + months);
+    return copy;
+  }
+
+  private shouldApplyReferralBonus(user: {
+    registrationDate?: string;
+    expiredDate?: string;
+  }): boolean {
+    if (!user.registrationDate || !user.expiredDate) {
+      return false;
+    }
+    const registrationDate = new Date(user.registrationDate);
+    const expiredDate = new Date(user.expiredDate);
+    if (
+      Number.isNaN(registrationDate.getTime()) ||
+      Number.isNaN(expiredDate.getTime())
+    ) {
+      return false;
+    }
+    const threshold = new Date(expiredDate);
+    threshold.setMonth(threshold.getMonth() - 1);
+    threshold.setDate(threshold.getDate() - 2);
+    return registrationDate > threshold;
+  }
+
   async getAll() {
     return userRepository.findAll();
   }
@@ -54,6 +98,59 @@ export class UserUseCase {
       throw new Error("Пользователь не найден");
     }
 
+    return updated;
+  }
+
+  async extendByPhone(phone: string, input: ExtendUserDto) {
+    const months = Number(input.months);
+    if (!Number.isInteger(months) || months <= 0) {
+      throw new Error("Некорректное количество месяцев");
+    }
+
+    const normalizedPhone = normalizeRuPhoneToMsisdn(phone);
+    const phoneVariants = getRuPhoneVariants(normalizedPhone);
+    const user = await userRepository.findByPhoneIn(phoneVariants);
+    if (!user) {
+      throw new Error("Пользователь не найден");
+    }
+
+    const userNewExpiredDate = this.addMonths(
+      this.getBaseExpiryDate(user.expiredDate),
+      months,
+    ).toISOString();
+
+    await userRepository.updateByPhoneIn(phoneVariants, {
+      expiredDate: userNewExpiredDate,
+    });
+
+    if (user.serverPrefix === this.remnawavePrefix) {
+      await remnawaveClient.updateUserByPhone(normalizedPhone, {
+        expireAt: userNewExpiredDate,
+      });
+    }
+
+    // Referral bonus: only for referrer users on REMNAWAVE.
+    if (user.referralUserLogin && this.shouldApplyReferralBonus(user)) {
+      const normalizedReferrerPhone = normalizeRuPhoneToMsisdn(
+        user.referralUserLogin,
+      );
+      const referrerVariants = getRuPhoneVariants(normalizedReferrerPhone);
+      const referralUser = await userRepository.findByPhoneIn(referrerVariants);
+      if (referralUser?.serverPrefix === this.remnawavePrefix) {
+        const referrerExpiredDate = this.addMonths(
+          this.getBaseExpiryDate(referralUser.expiredDate),
+          1,
+        ).toISOString();
+        await userRepository.updateByPhoneIn(referrerVariants, {
+          expiredDate: referrerExpiredDate,
+        });
+        await remnawaveClient.updateUserByPhone(normalizedReferrerPhone, {
+          expireAt: referrerExpiredDate,
+        });
+      }
+    }
+
+    const updated = await userRepository.findByPhoneIn(phoneVariants);
     return updated;
   }
 

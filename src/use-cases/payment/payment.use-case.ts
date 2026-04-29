@@ -7,6 +7,8 @@ import {
   UpdatePaymentDto,
 } from "../../types/payment.types";
 import { checkPaymentByFile } from "../../utils/payment-recognize";
+import { normalizeRuPhoneToMsisdn } from "../../utils/phone";
+import { userUseCase } from "../user/user.use-case";
 
 export class PaymentUseCase {
   async getAll() {
@@ -23,7 +25,25 @@ export class PaymentUseCase {
       throw new Error("period, amount, phone и date обязательны");
     }
 
-    return paymentRepository.create(input);
+    const normalizedPhone = normalizeRuPhoneToMsisdn(input.phone);
+    const existingPayment = await paymentRepository.findByPhoneAndAmount(
+      normalizedPhone,
+      input.amount,
+    );
+    if (existingPayment) {
+      throw new Error("Оплата по этому номеру уже была произведена");
+    }
+
+    // For UI payment flow: successful payment should immediately extend user access
+    // and apply referral bonus logic on server side.
+    await userUseCase.extendByPhone(normalizedPhone, {
+      months: input.period,
+    });
+
+    return paymentRepository.create({
+      ...input,
+      phone: normalizedPhone,
+    });
   }
 
   async update(paymentId: string, input: UpdatePaymentDto) {
@@ -43,7 +63,7 @@ export class PaymentUseCase {
     return updated;
   }
 
-  async checkPayment(input: CheckPaymentDto): Promise<boolean> {
+  async checkPayment(input: CheckPaymentDto): Promise<CheckPaymentResponseDto> {
     if (
       input.amount === undefined ||
       !Number.isFinite(input.amount) ||
@@ -59,7 +79,7 @@ export class PaymentUseCase {
       input.mimeType,
     );
 
-    return isPayCorrect;
+    return { result: isPayCorrect };
   }
 }
 

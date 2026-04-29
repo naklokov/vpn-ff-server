@@ -10,6 +10,13 @@ export class PaymentRepository {
     return PaymentModel.find({});
   }
 
+  async findByPhoneAndAmount(
+    phone: string,
+    amount: number,
+  ): Promise<IPayment | null> {
+    return PaymentModel.findOne({ phone, amount });
+  }
+
   async updateById(paymentId: string, data: UpdatePaymentDto): Promise<IPayment | null> {
     return PaymentModel.findByIdAndUpdate(
       paymentId,

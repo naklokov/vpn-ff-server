@@ -53,7 +53,8 @@ const checkPaymentPdf = async (
 ): Promise<boolean> => {
   try {
     const text = await getTextFromPdf(fileBuffer);
-    return checkRegexpAmount(text, amount);
+    const isPayCorrect = checkRegexpAmount(text, amount);
+    return isPayCorrect;
   } catch (error) {
     logger.error("checkPaymentPdf failed", error, { amount });
     return false;

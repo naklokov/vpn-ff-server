@@ -12,3 +12,7 @@ export type CreateUserDto = {
 };
 
 export type UpdateUserDto = Partial<CreateUserDto>;
+
+export type ExtendUserDto = {
+  months: number;
+};
