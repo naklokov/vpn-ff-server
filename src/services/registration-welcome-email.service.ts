@@ -46,7 +46,7 @@ function buildWelcomeEmail(params: {
   const subject = "Успешная регистрация в сервисе VPN FF";
 
   const loginLines: string[] = [
-    "Ваши данные для входа в личный кабинет:",
+    "Ваши данные для входа в личный кабинет: (пока в разработке)",
     `Email для входа: ${params.email}`,
     `Пароль для входа: ${params.email}`,
   ];
@@ -94,7 +94,7 @@ function buildWelcomeEmail(params: {
     .join("\n");
 
   const loginHtml = [
-    "<p>Ваши данные для входа в личный кабинет:</p>",
+    "<p>Ваши данные для входа в личный кабинет: (пока в разработке)</p>",
     `<p><strong>Email:</strong> ${escapeHtml(params.email)}</p>`,
     `<p><strong>Пароль:</strong> ${escapeHtml(params.password)}</p>`,
   ];
