@@ -14,10 +14,19 @@ export class PaymentRepository {
     phone: string,
     amount: number,
   ): Promise<IPayment | null> {
-    return PaymentModel.findOne({ phone, amount });
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    return PaymentModel.findOne({
+      phone,
+      amount,
+      date: { $gte: oneDayAgo },
+    });
   }
 
-  async updateById(paymentId: string, data: UpdatePaymentDto): Promise<IPayment | null> {
+  async updateById(
+    paymentId: string,
+    data: UpdatePaymentDto,
+  ): Promise<IPayment | null> {
     return PaymentModel.findByIdAndUpdate(
       paymentId,
       { $set: data },
@@ -27,4 +36,3 @@ export class PaymentRepository {
 }
 
 export const paymentRepository = new PaymentRepository();
-
