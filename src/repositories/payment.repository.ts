@@ -19,7 +19,7 @@ export class PaymentRepository {
     return PaymentModel.findOne({
       phone,
       amount,
-      date: { $gte: oneDayAgo },
+      createdAt: { $gte: oneDayAgo },
     });
   }
 
