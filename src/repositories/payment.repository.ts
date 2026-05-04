@@ -1,5 +1,6 @@
 import { PaymentModel, IPayment } from "../models/payment.model";
 import { CreatePaymentDto, UpdatePaymentDto } from "../types/payment.types";
+import { getCreatedPaymentDateIso } from "../utils/date";
 
 export class PaymentRepository {
   async create(data: CreatePaymentDto): Promise<IPayment> {
@@ -14,12 +15,10 @@ export class PaymentRepository {
     phone: string,
     amount: number,
   ): Promise<IPayment | null> {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
     return PaymentModel.findOne({
       phone,
       amount,
-      createdAt: { $gte: oneDayAgo },
+      date: { $gte: getCreatedPaymentDateIso() },
     });
   }
 
