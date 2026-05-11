@@ -4,18 +4,21 @@ import {
   CheckPaymentDto,
   CheckPaymentResponseDto,
   CreatePaymentDto,
+  CreatePaymentResponseDto,
   UpdatePaymentDto,
 } from "../../types/payment.types";
 import { checkPaymentByFile } from "../../utils/payment-recognize";
 import { normalizeRuPhoneToMsisdn } from "../../utils/phone";
 import { userUseCase } from "../user/user.use-case";
+import { env } from "../../config/env";
+import { remnawaveClient } from "../../providers/remnawave/remnawave.client";
 
 export class PaymentUseCase {
   async getAll() {
     return paymentRepository.findAll();
   }
 
-  async add(input: CreatePaymentDto) {
+  async add(input: CreatePaymentDto): Promise<CreatePaymentResponseDto> {
     if (
       input.period === undefined ||
       input.amount === undefined ||
@@ -34,16 +37,40 @@ export class PaymentUseCase {
       throw new Error("Оплата по этому номеру уже была произведена");
     }
 
+    const remnawavePrefix = env.serverPrefix || "REMNAWAVE";
+    const userBeforeExtend = await userUseCase.getUserByPhone(normalizedPhone);
+    if (!userBeforeExtend) {
+      throw new Error("Пользователь не найден");
+    }
+
     // For UI payment flow: successful payment should immediately extend user access
     // and apply referral bonus logic on server side.
-    await userUseCase.extendByPhone(normalizedPhone, {
+    const extendedUser = await userUseCase.extendByPhone(normalizedPhone, {
       months: input.period,
     });
 
-    return paymentRepository.create({
+    const createdPayment = await paymentRepository.create({
       ...input,
       phone: normalizedPhone,
     });
+
+    const isMigratedToRemnawave =
+      Boolean((extendedUser as { remnawaveUserCreated?: boolean } | null)?.remnawaveUserCreated) ||
+      userBeforeExtend.serverPrefix !== remnawavePrefix &&
+      extendedUser?.serverPrefix === remnawavePrefix;
+
+    if (!isMigratedToRemnawave) {
+      return createdPayment.toObject();
+    }
+
+    const subscriptionUrl =
+      await remnawaveClient.getSubscriptionUrlByUsername(normalizedPhone);
+
+    return {
+      ...createdPayment.toObject(),
+      isMigratedToRemnawave: true,
+      subscriptionUrl,
+    };
   }
 
   async update(paymentId: string, input: UpdatePaymentDto) {

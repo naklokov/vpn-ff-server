@@ -17,3 +17,14 @@ export type CheckPaymentDto = {
 export type CheckPaymentResponseDto = {
   result: boolean;
 };
+
+export type CreatePaymentResponseDto = {
+  _id: string;
+  chatId?: number;
+  period: number;
+  amount: number;
+  phone: string;
+  date: string;
+  isMigratedToRemnawave?: boolean;
+  subscriptionUrl?: string | null;
+};

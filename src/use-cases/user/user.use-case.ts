@@ -2,6 +2,7 @@ import { userRepository } from "../../repositories/user.repository";
 import { remnawaveClient } from "../../providers/remnawave/remnawave.client";
 import { sendRegistrationWelcomeEmailFireAndForget } from "../../services/registration-welcome-email.service";
 import { env } from "../../config/env";
+import { logger } from "../../utils/logger";
 import {
   CreateUserDto,
   ExtendUserDto,
@@ -15,6 +16,58 @@ import {
 
 export class UserUseCase {
   private readonly remnawavePrefix = env.serverPrefix || "REMNAWAVE";
+
+  private isRemnawaveUserNotFoundError(error: unknown): boolean {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 404) {
+      return true;
+    }
+    const message = (
+      (error as { response?: { data?: { message?: unknown } } })?.response?.data
+        ?.message ??
+      (error as Error)?.message ??
+      ""
+    )
+      .toString()
+      .toLowerCase();
+    return message.includes("not found") || message.includes("не найден");
+  }
+
+  private async syncRemnawaveUserAfterPayment(params: {
+    phone: string;
+    expireAt: string;
+    name?: string;
+    email?: string;
+    chatId?: number;
+    serverPrefix?: string;
+  }): Promise<boolean> {
+    const { phone, expireAt, name, email, chatId, serverPrefix } = params;
+    try {
+      await remnawaveClient.updateUserByPhone(phone, { expireAt });
+      return false;
+    } catch (error) {
+      if (!this.isRemnawaveUserNotFoundError(error)) {
+        throw error;
+      }
+
+      logger.warn(
+        "Remnawave user was not found during payment extension. Creating user.",
+        {
+          phone,
+          serverPrefix,
+        },
+      );
+
+      await remnawaveClient.addUser({
+        username: phone,
+        chatId: chatId ? String(chatId) : undefined,
+        description: name,
+        email,
+        expireAt,
+      });
+      return true;
+    }
+  }
 
   private getBaseExpiryDate(dateIso?: string): Date {
     const now = new Date();
@@ -123,9 +176,18 @@ export class UserUseCase {
       expiredDate: userNewExpiredDate,
     });
 
-    if (user.serverPrefix === this.remnawavePrefix) {
-      await remnawaveClient.updateUserByPhone(normalizedPhone, {
-        expireAt: userNewExpiredDate,
+    const remnawaveUserCreated = await this.syncRemnawaveUserAfterPayment({
+      phone: normalizedPhone,
+      expireAt: userNewExpiredDate,
+      name: user.name,
+      email: user.email,
+      chatId: user.chatId,
+      serverPrefix: user.serverPrefix,
+    });
+
+    if (user.serverPrefix !== this.remnawavePrefix) {
+      await userRepository.updateByPhoneIn(phoneVariants, {
+        serverPrefix: this.remnawavePrefix,
       });
     }
 
@@ -151,7 +213,13 @@ export class UserUseCase {
     }
 
     const updated = await userRepository.findByPhoneIn(phoneVariants);
-    return updated;
+    if (!updated) {
+      return updated;
+    }
+    return {
+      ...updated.toObject(),
+      remnawaveUserCreated,
+    };
   }
 
   async add(input: CreateUserDto) {
