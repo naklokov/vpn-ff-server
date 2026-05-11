@@ -21,15 +21,18 @@
   "homepage": "https://github.com/naklokov/vpn-ff-server#readme",
   "dependencies": {
     "axios": "^1.14.0",
+    "dayjs": "^1.11.20",
     "dotenv": "^17.3.1",
     "express": "^4.22.1",
     "mongoose": "^8.23.0",
+    "node-cron": "^4.2.1",
     "pdfjs-dist": "^3.11.174",
     "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.25",
     "@types/node": "^25.5.0",
+    "@types/node-cron": "^3.0.11",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.6.3"
   }

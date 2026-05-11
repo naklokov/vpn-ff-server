@@ -174,6 +174,8 @@ export class UserUseCase {
 
     await userRepository.updateByPhoneIn(phoneVariants, {
       expiredDate: userNewExpiredDate,
+      // После оплаты/продления пользователь снова должен считаться активным в боте (кроны, напоминания).
+      isActive: true,
     });
 
     const remnawaveUserCreated = await this.syncRemnawaveUserAfterPayment({

@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { normalizeUiBaseUrl } from "../utils/ui-base-url";
 
 dotenv.config();
 
@@ -10,8 +11,10 @@ requiredEnv.forEach((envName) => {
   }
 });
 
-const trimTrailingSlash = (value: string): string =>
-  value.replace(/\/+$/, "");
+const uiBaseUrlSource =
+  process.env.UI_REGISTER_URL?.trim() ||
+  process.env.PUBLIC_APP_URL?.trim() ||
+  "";
 
 export const env = {
   port: Number(process.env.PORT ?? 3000),
@@ -28,10 +31,20 @@ export const env = {
   brevoApiKey: process.env.BREVO_API_KEY?.trim() || "",
   brevoSenderEmail: process.env.BREVO_SENDER_EMAIL?.trim() || "",
   brevoSenderName: process.env.BREVO_SENDER_NAME?.trim() || "",
-  /** Ссылка на веб-вход (например https://vpn.example.com) */
-  publicAppUrl: process.env.PUBLIC_APP_URL?.trim()
-    ? trimTrailingSlash(process.env.PUBLIC_APP_URL.trim())
-    : "",
+  /**
+   * Базовый URL веб-приложения (из `UI_REGISTER_URL`; при миграции — из `PUBLIC_APP_URL`).
+   * К нему на сервере и в боте дописываются пути: `/register`, `/payment`, `/login`.
+   */
+  uiBaseUrl: normalizeUiBaseUrl(uiBaseUrlSource),
   /** Ссылка на инструкции по подключению (сайт, Notion и т.п.) */
   vpnInstructionsUrl: process.env.VPN_INSTRUCTIONS_URL?.trim() ?? "",
+
+  /** Ежедневные email-напоминания об оплате (как у бота): последние 3 календарных дня подписки */
+  paymentReminderEmailEnabled:
+    (process.env.PAYMENT_REMINDER_EMAIL_ENABLED ?? "true").toLowerCase() !==
+    "false",
+  paymentReminderEmailCron:
+    process.env.PAYMENT_REMINDER_EMAIL_CRON?.trim() || "0 12 * * *",
+  paymentReminderEmailTimezone:
+    process.env.PAYMENT_REMINDER_EMAIL_TIMEZONE?.trim() || "Europe/Moscow",
 };

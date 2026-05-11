@@ -52,8 +52,8 @@ function buildWelcomeEmail(params: {
     `Email для входа: ${params.email}`,
     `Пароль для входа: ${params.email}`,
   ];
-  if (env.publicAppUrl) {
-    loginLines.push(`Страница входа: ${env.publicAppUrl}/login`);
+  if (env.uiBaseUrl) {
+    loginLines.push(`Страница входа: ${env.uiBaseUrl}/login`);
   }
 
   const subscriptionLines: string[] = [];
@@ -106,8 +106,8 @@ function buildWelcomeEmail(params: {
     `<p><strong>Email:</strong> ${escapeHtml(params.email)}</p>`,
     `<p><strong>Пароль:</strong> ${escapeHtml(params.password)}</p>`,
   ];
-  if (env.publicAppUrl) {
-    const loginUrl = `${env.publicAppUrl}/login`;
+  if (env.uiBaseUrl) {
+    const loginUrl = `${env.uiBaseUrl}/login`;
     loginHtml.push(
       `<p><a href="${escapeHtml(loginUrl)}">Открыть страницу входа</a></p>`,
     );
