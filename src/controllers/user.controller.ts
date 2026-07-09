@@ -3,6 +3,17 @@ import { userUseCase } from "../use-cases/user/user.use-case";
 import { CreateUserDto, ExtendUserDto, UpdateUserDto } from "../types/user.types";
 import { logger } from "../utils/logger";
 
+const getPhoneErrorStatus = (error: unknown): number => {
+  const message = error instanceof Error ? error.message : "";
+  if (
+    message === "Некорректный формат телефона" ||
+    message === "Телефон должен быть мобильным номером РФ"
+  ) {
+    return 400;
+  }
+  return 500;
+};
+
 export const addUser = async (
   req: Request<unknown, unknown, CreateUserDto>,
   res: Response,
@@ -17,9 +28,12 @@ export const addUser = async (
         : "Ошибка при добавлении пользователя";
 
     const statusCode =
-      message === "Email и пароль обязательны"
+      message === "Email и пароль обязательны" ||
+      message === "Некорректный формат телефона" ||
+      message === "Телефон должен быть мобильным номером РФ"
         ? 400
         : message === "Пользователь с таким username уже существует" ||
+            message === "Пользователь с таким телефоном уже существует" ||
             message === "Пользователь с такой электронной почтой уже существует"
           ? 409
           : 500;
@@ -90,11 +104,23 @@ export const getUserByPhone = async (
 
     res.status(200).json(user);
   } catch (error: unknown) {
-    logger.error("getUserByPhone failed", error, {
-      path: "/api/users/phone/:phone",
-      phone: req.params.phone,
-    });
-    res.status(500).json({ message: "Ошибка при получении пользователя" });
+    const statusCode = getPhoneErrorStatus(error);
+    if (statusCode >= 500) {
+      logger.error("getUserByPhone failed", error, {
+        path: "/api/users/phone/:phone",
+        phone: req.params.phone,
+      });
+    }
+    res
+      .status(statusCode)
+      .json({
+        message:
+          statusCode === 400
+            ? error instanceof Error
+              ? error.message
+              : "Некорректный phone"
+            : "Ошибка при получении пользователя",
+      });
   }
 };
 
