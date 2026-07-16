@@ -91,7 +91,7 @@ function buildWelcomeEmail(params: {
     ...(params.shouldAddBindEmailInstruction
       ? [
           "",
-          "После настройки VPN перейдите в бота https://t.me/friendly_vpn_ff_bot и выберите там пункт «Привязать email к боту», затем введите email, с которым вы регистрировались. Бот может принимать оплату и уведомлять вас о необходимости оплаты.",
+          `После настройки VPN перейдите в бота ${env.telegramBotUrl} и выберите там пункт «Привязать email к боту», затем введите email, с которым вы регистрировались. Бот может принимать оплату и уведомлять вас о необходимости оплаты.`,
         ]
       : []),
     "",
@@ -134,7 +134,7 @@ function buildWelcomeEmail(params: {
     </ol></p>`;
 
   const bindEmailInstructionHtml = params.shouldAddBindEmailInstruction
-    ? `<br/><p>После настройки VPN перейдите в бота <a href="https://t.me/friendly_vpn_ff_bot">https://t.me/friendly_vpn_ff_bot</a> и выберите там пункт «Привязать email к боту», затем введите email, с которым вы регистрировались. Бот может принимать оплату и уведомлять вас о необходимости оплаты.</p>`
+    ? `<br/><p>После настройки VPN перейдите в бота <a href="${escapeHtml(env.telegramBotUrl)}">${escapeHtml(env.telegramBotUrl)}</a> и выберите там пункт «Привязать email к боту», затем введите email, с которым вы регистрировались. Бот может принимать оплату и уведомлять вас о необходимости оплаты.</p>`
     : "";
 
   const html = `<!DOCTYPE html><html><body>
@@ -149,7 +149,6 @@ function buildWelcomeEmail(params: {
   ${bindEmailInstructionHtml}
   <br/>
   <p>С уважением,<br/>команда сервиса VPN-FF</p>
-  <p>tg: https://t.me/friendly_vpn_ff_bot</p>
   </body></html>`;
 
   return { subject, text, html };

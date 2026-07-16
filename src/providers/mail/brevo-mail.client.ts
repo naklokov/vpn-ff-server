@@ -1,8 +1,24 @@
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosInstance, isAxiosError } from "axios";
 import { env } from "../../config/env";
+import { appendEmailFooter } from "./email-footer";
 
 export function isBrevoConfigured(): boolean {
   return Boolean(env.brevoApiKey && env.brevoSenderEmail);
+}
+
+function getBrevoErrorMessage(error: unknown): string {
+  if (!isAxiosError(error)) {
+    return error instanceof Error ? error.message : "Ошибка Brevo API";
+  }
+
+  const data = error.response?.data as
+    | { message?: string; code?: string }
+    | undefined;
+  if (data?.message) {
+    return data.message;
+  }
+
+  return error.message;
 }
 
 export class BrevoMailClient {
@@ -25,26 +41,35 @@ export class BrevoMailClient {
       throw new Error("Brevo API не настроен");
     }
 
-    await this.http.post(
-      "/v3/smtp/email",
-      {
-        sender: {
-          email: env.brevoSenderEmail,
-          ...(env.brevoSenderName ? { name: env.brevoSenderName } : {}),
+    const { text, html } = appendEmailFooter({
+      text: input.text,
+      html: input.html,
+    });
+
+    try {
+      await this.http.post(
+        "/v3/smtp/email",
+        {
+          sender: {
+            email: env.brevoSenderEmail,
+            ...(env.brevoSenderName ? { name: env.brevoSenderName } : {}),
+          },
+          to: [{ email: input.to }],
+          subject: input.subject,
+          htmlContent: html,
+          textContent: text,
         },
-        to: [{ email: input.to }],
-        subject: input.subject,
-        htmlContent: input.html,
-        textContent: input.text,
-      },
-      {
-        headers: {
-          "api-key": env.brevoApiKey,
-          Accept: "application/json",
-          "Content-Type": "application/json",
+        {
+          headers: {
+            "api-key": env.brevoApiKey,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
         },
-      },
-    );
+      );
+    } catch (error: unknown) {
+      throw new Error(getBrevoErrorMessage(error));
+    }
   }
 }
 

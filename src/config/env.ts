@@ -31,6 +31,10 @@ export const env = {
   brevoApiKey: process.env.BREVO_API_KEY?.trim() || "",
   brevoSenderEmail: process.env.BREVO_SENDER_EMAIL?.trim() || "",
   brevoSenderName: process.env.BREVO_SENDER_NAME?.trim() || "",
+  /** Публичная ссылка на Telegram-бота (для писем и т.п.) */
+  telegramBotUrl:
+    process.env.TELEGRAM_BOT_URL?.trim() ||
+    "https://t.me/friendly_vpn_ff_bot",
   /**
    * Базовый URL веб-приложения (из `UI_REGISTER_URL`; при миграции — из `PUBLIC_APP_URL`).
    * К нему на сервере и в боте дописываются пути: `/register`, `/payment`, `/login`.
