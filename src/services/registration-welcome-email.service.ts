@@ -35,6 +35,8 @@ async function fetchSubscriptionUrlWithRetry(
   return null;
 }
 
+export { fetchSubscriptionUrlWithRetry };
+
 function buildWelcomeEmail(params: {
   name?: string;
   email: string;

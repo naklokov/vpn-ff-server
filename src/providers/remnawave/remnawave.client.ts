@@ -57,6 +57,34 @@ export class RemnawaveClient {
     return data?.response?.internalSquads?.[0]?.uuid ?? null;
   }
 
+  /**
+   * Проверка наличия пользователя в панели по username (телефон).
+   * Использует GET /api/subscriptions/by-username/{username}.
+   */
+  async existsByUsername(username: string): Promise<boolean> {
+    try {
+      const { data } = await this.http.get<SubscriptionByUsernameResponse>(
+        `/api/subscriptions/by-username/${encodeURIComponent(String(username))}`,
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
+      return Boolean(data?.response?.isFound);
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 404) {
+        return false;
+      }
+
+      logger.error("Remnawave existsByUsername failed", error, { username });
+      throw new Error(
+        (error as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? "Не удалось проверить пользователя в панели VPN",
+      );
+    }
+  }
+
   async addUser(input: AddRemnawaveUserInput): Promise<unknown> {
     if (!env.remnawaveNewUserTag) {
       throw new Error("REMNAWAVE_NEW_USER_TAG не задан");

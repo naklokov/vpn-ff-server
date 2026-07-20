@@ -1,6 +1,9 @@
 import { userRepository } from "../../repositories/user.repository";
 import { remnawaveClient } from "../../providers/remnawave/remnawave.client";
-import { sendRegistrationWelcomeEmailFireAndForget } from "../../services/registration-welcome-email.service";
+import {
+  fetchSubscriptionUrlWithRetry,
+  sendRegistrationWelcomeEmailFireAndForget,
+} from "../../services/registration-welcome-email.service";
 import { env } from "../../config/env";
 import { logger } from "../../utils/logger";
 import {
@@ -240,37 +243,58 @@ export class UserUseCase {
         ? { referralUserLogin: normalizedReferralUserLogin }
         : {}),
     };
+    const expiredDate = preparedInput.expiredDate ?? getExpiredDateIso();
 
-    const existingPhone = await userRepository.findByPhoneIn(
-      getRuPhoneVariants(normalizedPhone),
-    );
+    // Все проверки до любых побочных эффектов (БД / панель).
+    const [existingPhone, existingEmail, existsInPanel] = await Promise.all([
+      userRepository.findByPhoneIn(getRuPhoneVariants(normalizedPhone)),
+      userRepository.findByEmail(preparedInput.email ?? ""),
+      remnawaveClient.existsByUsername(preparedInput.phone),
+    ]);
+
+    const conflicts: string[] = [];
     if (existingPhone) {
-      throw new Error("Пользователь с таким телефоном уже существует");
+      conflicts.push("Пользователь с таким телефоном уже существует");
     }
-
-    const existingEmail = await userRepository.findByEmail(
-      preparedInput?.email ?? "",
-    );
-
     if (existingEmail) {
-      throw new Error("Пользователь с такой электронной почтой уже существует");
+      conflicts.push(
+        "Пользователь с такой электронной почтой уже существует",
+      );
+    }
+    if (existsInPanel) {
+      conflicts.push("Пользователь с таким username уже существует");
+    }
+    if (conflicts.length) {
+      throw new Error(conflicts.join(". "));
     }
 
-    const createdUser = await userRepository.create(preparedInput);
+    // Сначала панель: если запись в БД упадёт, в Mongo не останется «пустого» пользователя
+    // без доступа. Обратный порядок раньше оставлял orphan в БД при ошибке Remnawave.
+    await remnawaveClient.addUser({
+      username: preparedInput.phone,
+      chatId: preparedInput?.chatId?.toString() ?? "",
+      description: preparedInput.name,
+      email: preparedInput.email,
+      expireAt: expiredDate,
+    });
 
+    let createdUser;
     try {
-      await remnawaveClient.addUser({
-        username: preparedInput.phone,
-        chatId: preparedInput?.chatId?.toString() ?? "",
-        description: preparedInput.name,
-        email: preparedInput.email,
-        expireAt: preparedInput.expiredDate ?? getExpiredDateIso(),
+      createdUser = await userRepository.create({
+        ...preparedInput,
+        expiredDate,
       });
     } catch (error) {
-      throw error;
+      logger.error(
+        "Пользователь создан в Remnawave, но не сохранён в БД",
+        error,
+        { phone: preparedInput.phone, email: preparedInput.email },
+      );
+      throw new Error(
+        "Не удалось сохранить пользователя. Обратитесь в поддержку",
+      );
     }
 
-    const expiredDate = preparedInput.expiredDate ?? getExpiredDateIso();
     sendRegistrationWelcomeEmailFireAndForget({
       email: preparedInput.email as string,
       password: preparedInput.password,
@@ -279,7 +303,19 @@ export class UserUseCase {
       expiredDate,
     });
 
-    return createdUser;
+    const subscriptionUrl = await fetchSubscriptionUrlWithRetry(
+      preparedInput.phone,
+    );
+    const userPayload =
+      typeof (createdUser as { toObject?: () => unknown }).toObject ===
+      "function"
+        ? (createdUser as { toObject: () => Record<string, unknown> }).toObject()
+        : createdUser;
+
+    return {
+      ...userPayload,
+      subscriptionUrl,
+    };
   }
 }
 
