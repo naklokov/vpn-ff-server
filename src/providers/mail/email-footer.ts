@@ -17,7 +17,7 @@ export function getEmailFooterText(): string {
   const lines = ["", "—", `Telegram-бот: ${botUrl}`];
 
   if (env.uiBaseUrl) {
-    lines.push(`Сайт: ${env.uiBaseUrl}`);
+    lines.push(`Поддержка: ${env.uiBaseUrl}/support`);
   }
 
   return lines.join("\n");
@@ -26,7 +26,7 @@ export function getEmailFooterText(): string {
 export function getEmailFooterHtml(): string {
   const botUrl = getTelegramBotUrl();
   const siteLine = env.uiBaseUrl
-    ? `<br/>Сайт: <a href="${escapeHtml(env.uiBaseUrl)}">${escapeHtml(env.uiBaseUrl)}</a>`
+    ? `<br/>Поддержка: <a href="${escapeHtml(env.uiBaseUrl)}/support">${escapeHtml(env.uiBaseUrl)}/support</a>`
     : "";
 
   return `<hr style="border:none;border-top:1px solid #ddd;margin:24px 0 12px"/>
@@ -35,10 +35,10 @@ Telegram-бот: <a href="${escapeHtml(botUrl)}">${escapeHtml(botUrl)}</a>${site
 </p>`;
 }
 
-export function appendEmailFooter(input: {
+export function appendEmailFooter(input: { text: string; html: string }): {
   text: string;
   html: string;
-}): { text: string; html: string } {
+} {
   const footerText = getEmailFooterText();
   const footerHtml = getEmailFooterHtml();
 

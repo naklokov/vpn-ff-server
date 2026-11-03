@@ -39,12 +39,10 @@ export class PaymentUseCase {
 
     const remnawavePrefix = env.serverPrefix || "REMNAWAVE";
     const userBeforeExtend = await userUseCase.getUserByPhone(normalizedPhone);
-    if (!userBeforeExtend) {
-      throw new Error("Пользователь не найден");
-    }
 
     // For UI payment flow: successful payment should immediately extend user access
     // and apply referral bonus logic on server side.
+    // If the user exists only in Remnawave, extendByPhone imports them into Mongo first.
     const extendedUser = await userUseCase.extendByPhone(normalizedPhone, {
       months: input.period,
     });
@@ -56,8 +54,11 @@ export class PaymentUseCase {
 
     const isMigratedToRemnawave =
       Boolean((extendedUser as { remnawaveUserCreated?: boolean } | null)?.remnawaveUserCreated) ||
-      userBeforeExtend.serverPrefix !== remnawavePrefix &&
-      extendedUser?.serverPrefix === remnawavePrefix;
+      Boolean(
+        userBeforeExtend &&
+          userBeforeExtend.serverPrefix !== remnawavePrefix &&
+          extendedUser?.serverPrefix === remnawavePrefix,
+      );
 
     if (!isMigratedToRemnawave) {
       return createdPayment.toObject();

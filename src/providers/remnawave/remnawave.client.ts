@@ -28,6 +28,18 @@ type SubscriptionByUsernameResponse = {
   };
 };
 
+export type RemnawavePanelUser = {
+  username?: string;
+  email?: string | null;
+  expireAt?: string | null;
+  createdAt?: string | null;
+  description?: string | null;
+};
+
+type UserByUsernameResponse = {
+  response?: RemnawavePanelUser;
+};
+
 export class RemnawaveClient {
   private http: AxiosInstance;
 
@@ -79,8 +91,34 @@ export class RemnawaveClient {
 
       logger.error("Remnawave existsByUsername failed", error, { username });
       throw new Error(
-        (error as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? "Не удалось проверить пользователя в панели VPN",
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Не удалось проверить пользователя в панели VPN",
+      );
+    }
+  }
+
+  async getUserByUsername(
+    username: string,
+  ): Promise<RemnawavePanelUser | null> {
+    try {
+      const { data } = await this.http.get<UserByUsernameResponse>(
+        `/api/users/by-username/${encodeURIComponent(String(username))}`,
+        {
+          headers: this.getAuthHeaders(),
+        },
+      );
+      return data?.response ?? null;
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response
+        ?.status;
+      if (status === 404) {
+        return null;
+      }
+
+      logger.error("Remnawave getUserByUsername failed", error, { username });
+      throw new Error(
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? "Не удалось получить пользователя из панели VPN",
       );
     }
   }
@@ -126,18 +164,14 @@ export class RemnawaveClient {
         payload,
       });
 
-      throw new Error(
-        responseMessage ?? "Unknown error",
-      );
+      throw new Error(responseMessage ?? "Unknown error");
     }
   }
 
   /**
    * GET /api/subscriptions/by-username/{username} — ссылка на подписку для клиента VPN.
    */
-  async getSubscriptionUrlByUsername(
-    username: string,
-  ): Promise<string | null> {
+  async getSubscriptionUrlByUsername(username: string): Promise<string | null> {
     try {
       const { data } = await this.http.get<SubscriptionByUsernameResponse>(
         `/api/subscriptions/by-username/${encodeURIComponent(String(username))}`,

@@ -11,11 +11,13 @@ import {
   ExtendUserDto,
   UpdateUserDto,
 } from "../../types/user.types";
-import { getExpiredDateIso } from "../../utils/date";
+import { getExpiredDateIso, getRegistrationDateIso } from "../../utils/date";
 import {
   getRuPhoneVariants,
   normalizeRuPhoneToMsisdn,
 } from "../../utils/phone";
+
+const IMPORTED_USER_PASSWORD = "123123123";
 
 export class UserUseCase {
   private readonly remnawavePrefix = env.serverPrefix || "REMNAWAVE";
@@ -70,6 +72,74 @@ export class UserUseCase {
       });
       return true;
     }
+  }
+
+  private toIsoDate(value?: string | null): string | undefined {
+    if (!value) {
+      return undefined;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return undefined;
+    }
+    return parsed.toISOString();
+  }
+
+  private async resolveImportedEmail(
+    panelEmail: string | null | undefined,
+    phone: string,
+  ): Promise<string> {
+    const email = panelEmail?.trim();
+    if (email) {
+      const existing = await userRepository.findByEmail(email);
+      if (!existing) {
+        return email;
+      }
+      logger.warn(
+        "Email from Remnawave already exists in Mongo, using fallback email",
+        { phone, email },
+      );
+    }
+    return `${phone}@imported.local`;
+  }
+
+  private async importUserFromRemnawave(phone: string) {
+    const phoneVariants = getRuPhoneVariants(phone);
+    let panelUser = null as Awaited<
+      ReturnType<typeof remnawaveClient.getUserByUsername>
+    >;
+    let remnawaveUsername = phone;
+    for (const username of phoneVariants) {
+      panelUser = await remnawaveClient.getUserByUsername(username);
+      if (panelUser) {
+        remnawaveUsername = panelUser.username?.trim() || username;
+        break;
+      }
+    }
+    if (!panelUser) {
+      return null;
+    }
+
+    const email = await this.resolveImportedEmail(panelUser.email, phone);
+    const created = await userRepository.create({
+      phone,
+      email,
+      password: IMPORTED_USER_PASSWORD,
+      name: panelUser.description?.trim() || undefined,
+      registrationDate:
+        this.toIsoDate(panelUser.createdAt) ?? getRegistrationDateIso(),
+      expiredDate: this.toIsoDate(panelUser.expireAt) ?? getExpiredDateIso(),
+      isActive: true,
+      serverPrefix: this.remnawavePrefix,
+    });
+
+    logger.info("User imported from Remnawave into Mongo", {
+      phone,
+      email,
+      remnawaveUsername,
+    });
+
+    return { user: created, remnawaveUsername };
   }
 
   private getBaseExpiryDate(dateIso?: string): Date {
@@ -165,7 +235,15 @@ export class UserUseCase {
 
     const normalizedPhone = normalizeRuPhoneToMsisdn(phone);
     const phoneVariants = getRuPhoneVariants(normalizedPhone);
-    const user = await userRepository.findByPhoneIn(phoneVariants);
+    let user = await userRepository.findByPhoneIn(phoneVariants);
+    let remnawaveUsername = normalizedPhone;
+    if (!user) {
+      const imported = await this.importUserFromRemnawave(normalizedPhone);
+      user = imported?.user ?? null;
+      if (imported?.remnawaveUsername) {
+        remnawaveUsername = imported.remnawaveUsername;
+      }
+    }
     if (!user) {
       throw new Error("Пользователь не найден");
     }
@@ -182,7 +260,7 @@ export class UserUseCase {
     });
 
     const remnawaveUserCreated = await this.syncRemnawaveUserAfterPayment({
-      phone: normalizedPhone,
+      phone: remnawaveUsername,
       expireAt: userNewExpiredDate,
       name: user.name,
       email: user.email,

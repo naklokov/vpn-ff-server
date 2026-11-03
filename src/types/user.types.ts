@@ -9,6 +9,7 @@ export type CreateUserDto = {
   isActive?: boolean;
   isVless?: boolean;
   expiredDate?: string;
+  registrationDate?: string;
 };
 
 export type UpdateUserDto = Partial<CreateUserDto>;
