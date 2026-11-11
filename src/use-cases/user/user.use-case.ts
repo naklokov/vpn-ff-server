@@ -1,5 +1,6 @@
 import { userRepository } from "../../repositories/user.repository";
 import { remnawaveClient } from "../../providers/remnawave/remnawave.client";
+import { notifyReferralBonus } from "../../providers/telegram/telegram-notify.client";
 import {
   fetchSubscriptionUrlWithRetry,
   sendRegistrationWelcomeEmailFireAndForget,
@@ -158,25 +159,20 @@ export class UserUseCase {
     return copy;
   }
 
-  private shouldApplyReferralBonus(user: {
-    registrationDate?: string;
-    expiredDate?: string;
-  }): boolean {
-    if (!user.registrationDate || !user.expiredDate) {
-      return false;
-    }
-    const registrationDate = new Date(user.registrationDate);
-    const expiredDate = new Date(user.expiredDate);
-    if (
-      Number.isNaN(registrationDate.getTime()) ||
-      Number.isNaN(expiredDate.getTime())
-    ) {
-      return false;
-    }
-    const threshold = new Date(expiredDate);
-    threshold.setMonth(threshold.getMonth() - 1);
-    threshold.setDate(threshold.getDate() - 2);
-    return registrationDate > threshold;
+  private addDays(date: Date, days: number): Date {
+    const copy = new Date(date);
+    copy.setDate(copy.getDate() + days);
+    return copy;
+  }
+
+  /** Бонус пригласившему за каждую оплату приглашённого на 1, 3 или 6 месяцев. */
+  private getReferralBonusDays(months: number): number | null {
+    const bonusByMonths: Record<number, number> = {
+      1: 2,
+      3: 5,
+      6: 9,
+    };
+    return bonusByMonths[months] ?? null;
   }
 
   async getAll() {
@@ -274,23 +270,29 @@ export class UserUseCase {
       });
     }
 
-    // Referral bonus: only for referrer users on REMNAWAVE.
-    if (user.referralUserLogin && this.shouldApplyReferralBonus(user)) {
+    // Referral bonus on every paid extension of an invited user.
+    const referralBonusDays = this.getReferralBonusDays(months);
+    if (referralBonusDays && user.referralUserLogin) {
       const normalizedReferrerPhone = normalizeRuPhoneToMsisdn(
         user.referralUserLogin,
       );
       const referrerVariants = getRuPhoneVariants(normalizedReferrerPhone);
       const referralUser = await userRepository.findByPhoneIn(referrerVariants);
       if (referralUser?.serverPrefix === this.remnawavePrefix) {
-        const referrerExpiredDate = this.addMonths(
+        const referrerExpiredDate = this.addDays(
           this.getBaseExpiryDate(referralUser.expiredDate),
-          1,
+          referralBonusDays,
         ).toISOString();
         await userRepository.updateByPhoneIn(referrerVariants, {
           expiredDate: referrerExpiredDate,
         });
         await remnawaveClient.updateUserByPhone(normalizedReferrerPhone, {
           expireAt: referrerExpiredDate,
+        });
+        await notifyReferralBonus({
+          chatId: referralUser.chatId,
+          days: referralBonusDays,
+          friendPhone: normalizedPhone,
         });
       }
     }
