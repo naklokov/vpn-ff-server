@@ -4,6 +4,10 @@ export type CreatePaymentDto = {
   amount: number;
   phone: string;
   date: string;
+  /** Квитанция с сайта: только для уведомления админа, в БД не сохраняется. */
+  receiptBase64?: string;
+  receiptMimeType?: string;
+  receiptFileName?: string;
 };
 
 export type UpdatePaymentDto = Partial<CreatePaymentDto>;

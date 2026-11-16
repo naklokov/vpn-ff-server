@@ -33,6 +33,8 @@ export const env = {
   brevoSenderName: process.env.BREVO_SENDER_NAME?.trim() || "",
   /** Токен бота для уведомлений (в Docker уже приходит как BOT_TOKEN). */
   telegramBotToken: process.env.BOT_TOKEN?.trim() || "",
+  /** Чат админа в Telegram. Совпадает с ADMIN_CHAT_ID бота. */
+  adminChatId: Number(process.env.ADMIN_CHAT_ID) || 332529322,
   /** Публичная ссылка на Telegram-бота (для писем и т.п.) */
   telegramBotUrl:
     process.env.TELEGRAM_BOT_URL?.trim() ||

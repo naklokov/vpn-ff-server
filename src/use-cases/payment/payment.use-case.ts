@@ -12,6 +12,7 @@ import { normalizeRuPhoneToMsisdn } from "../../utils/phone";
 import { userUseCase } from "../user/user.use-case";
 import { env } from "../../config/env";
 import { remnawaveClient } from "../../providers/remnawave/remnawave.client";
+import { notifyAdminSitePayment } from "../../providers/telegram/telegram-notify.client";
 
 export class PaymentUseCase {
   async getAll() {
@@ -48,8 +49,19 @@ export class PaymentUseCase {
     });
 
     const createdPayment = await paymentRepository.create({
-      ...input,
+      chatId: input.chatId,
+      period: input.period,
+      amount: input.amount,
       phone: normalizedPhone,
+      date: input.date,
+    });
+
+    await notifyAdminSitePayment({
+      phone: normalizedPhone,
+      period: input.period,
+      receiptBase64: input.receiptBase64,
+      receiptMimeType: input.receiptMimeType,
+      receiptFileName: input.receiptFileName,
     });
 
     const isMigratedToRemnawave =
